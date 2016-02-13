@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+when not defined(windows):
+  import posix
+
 type
   TimeMeasurement = distinct int64
   NanoSeconds = int64
@@ -56,4 +59,20 @@ elif defined(macosx):
     mach_timebase_info(timebase)
     result = time * int64(timebase.numer.float32 / timebase.denom.float32)
 else:
-  {.fatal: "time measurement for this platform is not implemented yet!".}
+  import posix
+
+  type
+    CLOCK_REALTIME {.importc, header: "<time.h>".} = ClockId
+
+  proc getTimeMeasurement*(): TimeMeasurement {.inline.} =
+    var ts: timespec
+
+    if clock_gettime(CLOCK_REALTIME, ts) != 0:
+      raise newException(OSError, "clock_gettime failed")
+
+    result = ts.tv_nsec
+
+  proc `-`*(a,b: TimeMeasurement): NanoSeconds =
+    result = a.int64 - b.int64
+
+  #{.fatal: "time measurement for this platform is not implemented yet!".}
